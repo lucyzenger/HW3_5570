@@ -1,10 +1,18 @@
 // app/baby.tsx
-import React, { useState } from 'react';
-import { View, Text, Button, TextInput, StyleSheet, FlatList } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  Button,
+  TextInput,
+  StyleSheet,
+  FlatList,
+  ActivityIndicator,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState, AppDispatch } from '../src/store';
-import { addLog, BabyLog } from '../src/babySlice';
+import { BabyLog, fetchLogs, createLog } from '../src/babySlice';
 
 // Child component (reusable card for each log)
 const BabyLogItem = ({ log }: { log: BabyLog }) => {
@@ -24,12 +32,19 @@ export default function BabyScreen() {
   const [date, setDate] = useState('');
   const [note, setNote] = useState('');
 
-  // Read logs from Redux store
-  const logs = useSelector((state: RootState) => state.baby.logs);
+  // Read logs and status from Redux store
+  const { logs, loading, error } = useSelector(
+    (state: RootState) => state.baby
+  );
+
+  // Load logs from backend when screen mounts
+  useEffect(() => {
+    dispatch(fetchLogs());
+  }, [dispatch]);
 
   const handleAddLog = () => {
     if (!date || !note) return;
-    dispatch(addLog({ date, note }));
+    dispatch(createLog({ date, note }));
     setDate('');
     setNote('');
   };
@@ -41,7 +56,7 @@ export default function BabyScreen() {
       <Text style={styles.sectionTitle}>Add a new log</Text>
       <TextInput
         style={styles.input}
-        placeholder="Date (e.g. 2026-03-04)"
+        placeholder="Date (e.g. 2026-03-28)"
         value={date}
         onChangeText={setDate}
       />
@@ -53,12 +68,27 @@ export default function BabyScreen() {
       />
       <Button title="Add Log" onPress={handleAddLog} />
 
+      {loading && (
+        <View style={{ marginTop: 8 }}>
+          <ActivityIndicator />
+          <Text>Loading...</Text>
+        </View>
+      )}
+
+      {error && (
+        <Text style={{ color: 'red', marginTop: 8 }}>
+          {error}
+        </Text>
+      )}
+
       <Text style={styles.sectionTitle}>Logs</Text>
       <FlatList
         data={logs}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => String(item.id)}
         renderItem={({ item }) => <BabyLogItem log={item} />}
-        ListEmptyComponent={<Text>No logs yet. Add one above.</Text>}
+        ListEmptyComponent={
+          !loading ? <Text>No logs yet. Add one above.</Text> : null
+        }
       />
 
       <View style={{ marginTop: 16 }}>
